@@ -7,6 +7,10 @@ const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
 };
+app.post("/urls/:id/edit", (req, res) => {
+  urlDatabase[req.params.id] = req.body.longURL;
+  res.redirect("/urls")
+});
 app.post("/urls/:id/delete", (req, res) => {
   delete urlDatabase[req.params.id];
   console.log(urlDatabase)
