@@ -7,6 +7,10 @@ const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
 };
+app.get("/u/:id", (req, res) => {
+  const longURL = urlDatabase[req.params.id]
+  res.redirect(longURL);
+});
 app.post("/urls", (req, res) => {
   const shortUrl = generateString();
   urlDatabase[shortUrl] = req.body.longURL;
