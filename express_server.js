@@ -9,6 +9,12 @@ const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
 };
+app.get("/login", (req, res) => {
+  const templateVars = {
+    user: req.cookies["user_id"],
+  };
+  res.render("login", templateVars);
+});
 app.post("/register", (req, res) => {
   const userId = generateString();
   users[`user-${userId}`] = {
@@ -33,11 +39,22 @@ app.post("/register", (req, res) => {
 });
 app.post("/logout", (req, res) => {
   res.clearCookie("user_id");
-  res.redirect("/urls");
+  res.redirect("/login");
 });
+//DRY THIS CODE
 app.post("/login", (req, res) => {
-  res.cookie("username", req.body.username);
-  res.redirect("/urls");
+  for (const userObj in users) {
+    const databaseUsers = users[userObj];
+    if (
+      databaseUsers.email === req.body.email &&
+      databaseUsers.password === req.body.password
+    ) {
+      res.cookie("user_id", databaseUsers);
+      res.redirect("/urls");
+    } else {
+      res.status(403).send("Forbidden: Incorrect username or password.");
+    }
+  }
 });
 app.post("/urls/:id/edit", (req, res) => {
   urlDatabase[req.params.id] = req.body.longURL;
