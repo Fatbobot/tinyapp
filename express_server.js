@@ -1,5 +1,5 @@
 const express = require("express");
-var cookieParser = require("cookie-parser");
+let cookieParser = require("cookie-parser");
 const app = express();
 const PORT = 8080;
 app.set("view engine", "ejs");
@@ -9,8 +9,24 @@ const urlDatabase = {
   b2xVn2: "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
 };
+app.post("/register", (req, res) => {
+  const userId = generateString();
+  users[`user-${userId}`] = {
+    id: userId,
+    email: req.body.email,
+    password: req.body.password,
+  };
+  const currentUser = users[`user-${userId}`];
+  if (currentUser.email.length === 0 || currentUser.password.length === 0) {
+    res
+      .status(400)
+      .send("Bad Request: Insufficent characters in Password or Username");
+  }
+  res.cookie("user_id", users[`user-${userId}`]);
+  res.redirect("/urls");
+});
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+  res.clearCookie("user_id");
   res.redirect("/urls");
 });
 app.post("/login", (req, res) => {
@@ -38,18 +54,27 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${shortUrl}`);
 });
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  const templateVars = {
+    user: req.cookies["user_id"],
+  };
+  res.render("urls_new", templateVars);
+});
+app.get("/register", (req, res) => {
+  const templateVars = {
+    user: req.cookies["user_id"],
+  };
+  res.render("urls_register", templateVars);
 });
 app.get("/urls", (req, res) => {
   const templateVars = {
     urls: urlDatabase,
-    username: req.cookies["username"],
+    user: req.cookies["user_id"],
   };
   res.render("urls_index", templateVars);
 });
 app.get("/urls/:id", (req, res) => {
   const templateVars = {
-    username: req.cookies["username"],
+    user: req.cookies["user_id"],
     id: req.params.id,
     longURL: urlDatabase[req.params.id],
   };
@@ -81,4 +106,17 @@ const generateString = function () {
   }
 
   return result;
+};
+
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "user@example.com",
+    password: "purple-monkey-dinosaur",
+  },
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: "dishwasher-funk",
+  },
 };
