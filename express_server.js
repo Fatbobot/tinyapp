@@ -22,6 +22,12 @@ app.post("/register", (req, res) => {
       .status(400)
       .send("Bad Request: Insufficent characters in Password or Username");
   }
+  for (const userObj in users) {
+    const databaseUser = users[userObj];
+    if (databaseUser.email === currentUser.email) {
+      res.status(400).send("Bad Request: Email already in use.");
+    }
+  }
   res.cookie("user_id", users[`user-${userId}`]);
   res.redirect("/urls");
 });
@@ -49,7 +55,7 @@ app.get("/u/:id", (req, res) => {
 app.post("/urls", (req, res) => {
   const shortUrl = generateString();
   urlDatabase[shortUrl] = req.body.longURL;
-  console.log(req.body); // Log the POST request body to the console
+  console.log(req.body);
   console.log(urlDatabase);
   res.redirect(`/urls/${shortUrl}`);
 });
