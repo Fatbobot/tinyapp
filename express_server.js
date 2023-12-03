@@ -1,11 +1,20 @@
 const express = require("express");
-let cookieParser = require("cookie-parser");
+let cookieSession = require('cookie-session')
 const bcrypt = require("bcryptjs");
 const app = express();
 const PORT = 8080;
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.set('trust proxy', 1) // trust first proxy
+
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key']
+}))
+app.use(function (req, res, next) {
+  req.sessionOptions.maxAge = req.session.maxAge || req.sessionOptions.maxAge
+  next()
+})
 //Database storing Urls with creator ID
 const urlDatabase = {
   b6UTxQ: {
@@ -21,17 +30,18 @@ const users = {
   aJ48lW: {
     id: "aJ48lW",
     email: "user@example.com",
-    password: "purple-monkey-dinosaur",
+    password: bcrypt.hashSync("purple-monkey-dinosaur", 10),
   },
   user2RandomID: {
     id: "user2RandomID",
     email: "user2@example.com",
-    password: "dishwasher-funk",
+    password: bcrypt.hashSync("dishwasher-funk", 10),
+    
   },
   testid: {
     id: "testid",
     email: "123@123.com",
-    password: "123",
+    password: bcrypt.hashSync("123", 10),
   },
 };
 
@@ -68,11 +78,11 @@ const urlsForUser = (id)=> {
 
 app.get("/login", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
     urls: urlDatabase,
   };
   //dry
-  if (req.cookies["user_id"]) {
+  if (req.session.user_id) {
     res.render("urls_index", templateVars);
   } else {
     res.render("login", templateVars);
@@ -93,30 +103,12 @@ app.post("/register", (req, res) => {
     res.status(400).send("Bad Request: Email already in use.");
     return;
   }
-
-  // const currentUser = users[`user-${userId}`];
-  // if (currentUser.email.length === 0 || currentUser.password.length === 0) {
-  //   res
-  //     .status(400)
-  //     .send("Bad Request: Insufficent characters in Password or Username");
-  // }
-  // for (const userObj in users) {
-  //   console.log("userObj", userObj);
-  //   const databaseUser = users[userObj];
-  //   console.log("databaseUser", databaseUser);
-  //   if (databaseUser.email === currentUser.email) {
-  //     console.log("if cond ---- currentUSer", currentUser);
-  //     console.log("if cond ---- databaseUser", databaseUser);
-  //     res.status(400).send("Bad Request: Email already in use.");
-  //     return;
-  //   }
-  // }
   users[userId] = {
     id: userId,
     email: email,
     password: password,
   };
-  res.cookie("user_id", userId);
+  req.session.user_id = userId;
   res.redirect("/urls");
 });
 app.post("/logout", (req, res) => {
@@ -129,7 +121,7 @@ app.post("/login", (req, res) => {
   const loggedInUser = users[doesEmailExist];
   if (loggedInUser) {
     if (bcrypt.compareSync(req.body.password, loggedInUser.password)) {
-      res.cookie("user_id", loggedInUser.id);
+      req.session.user_id = loggedInUser.id;
       res.redirect("/urls");
     } else {
       res.status(403).send("Forbidden: Incorrect  password.");
@@ -139,22 +131,9 @@ app.post("/login", (req, res) => {
     res.status(401).send("Email not found");
     return;
   }
-  // for (const userObj in users) {
-  //   const databaseUsers = users[userObj];
-  //   if (
-  //     databaseUsers.email === req.body.email &&
-  //     databaseUsers.password === req.body.password
-  //   ) {
-  //     res.cookie("user_id", databaseUsers);
-  //     res.redirect("/urls");
-  //   } else {
-  //     res.status(403).send("Forbidden: Incorrect username or password.");
-  //     return;
-  //   }
-  // }
 });
 app.post("/urls/:id/edit", (req, res) => {
-  const keysOfuserUrls = Object.keys(urlsForUser(req.cookies["user_id"]))
+  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id))
   if (keysOfuserUrls.includes(req.params.id)) {
     urlDatabase[req.params.id].longURL = req.body.longURL;
     res.redirect("/urls");
@@ -163,7 +142,7 @@ app.post("/urls/:id/edit", (req, res) => {
   }
 });
 app.post("/urls/:id/delete", (req, res) => {
-  const keysOfuserUrls = Object.keys(urlsForUser(req.cookies["user_id"]))
+  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id))
   if (keysOfuserUrls.includes(req.params.id)) {
     delete urlDatabase[req.params.id];
     res.redirect("/urls");
@@ -181,23 +160,23 @@ app.get("/u/:id", (req, res) => {
   }
 });
 app.post("/urls", (req, res) => {
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.send("Please Login or Create a profile to create a new URL");
     return;
   }
   const shortUrl = generateString();
   urlDatabase[shortUrl] = {
     "shortUrl" : shortUrl,
-    "longUrl" : req.body.longURL,
-    "userID" : req.cookies["user_id"]
+    "longURL" : req.body.longURL,
+    "userID" : req.session.user_id
   }
   res.redirect(`/urls/${shortUrl}`);
 });
 app.get("/urls/new", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.render("login", templateVars);
   } else {
     res.render("urls_new", templateVars);
@@ -205,11 +184,11 @@ app.get("/urls/new", (req, res) => {
 });
 app.get("/register", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
     urls: urlDatabase,
   };
   //dry
-  if (req.cookies["user_id"]) {
+  if (req.session.user_id) {
     res.render("urls_index", templateVars);
   } else {
     res.render("urls_register", templateVars);
@@ -217,10 +196,10 @@ app.get("/register", (req, res) => {
 });
 app.get("/urls", (req, res) => {
   const templateVars = {
-    urls: urlsForUser(req.cookies["user_id"]),
-    user: users[req.cookies["user_id"]],
+    urls: urlsForUser(req.session.user_id),
+    user: users[req.session.user_id],
   };
-  if (!req.cookies["user_id"]) {
+  if (!req.session.user_id) {
     res.send("Error: This page is restricted for User access. Please Login to continue.");
   } else {
     res.render("urls_index", templateVars);
@@ -228,12 +207,12 @@ app.get("/urls", (req, res) => {
 });
 app.get("/urls/:id", (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
     id: req.params.id,
     longURL: urlDatabase[req.params.id].longURL,
   };
-  const keysOfuserUrls = Object.keys(urlsForUser(req.cookies["user_id"]))
-  if (!req.cookies["user_id"]) {
+  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id))
+  if (!req.session.user_id) {
     res.send("Error: This page is restricted for User access. Please Login to continue.");
     return;
   }
@@ -244,16 +223,6 @@ app.get("/urls/:id", (req, res) => {
   }
 
 });
-// app.get("/", (req, res) => {
-//   res.send("Hello!");
-// });
-
-// app.get("/urls.json", (req, res) => {
-//   res.json(urlDatabase);
-// });
-// app.get("/hello", (req, res) => {
-//   res.send("<html><body>Hello <b>World</b></body></html>\n");
-// });
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
