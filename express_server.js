@@ -1,6 +1,7 @@
 const express = require("express");
 let cookieSession = require('cookie-session')
 const bcrypt = require("bcryptjs");
+const { urlsForUser, getUserByEmail, generateString } = require('./helpers')
 const app = express();
 const PORT = 8080;
 app.set("view engine", "ejs");
@@ -44,38 +45,6 @@ const users = {
     password: bcrypt.hashSync("123", 10),
   },
 };
-
-const characters =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-const generateString = function () {
-  let result = "";
-  const charactersLength = characters.length;
-  for (let i = 0; i < 6; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-
-  return result;
-};
-
-const getUserByEmail = (email, database) => {
-  for (const userId in database) {
-    if (database[userId].email === email) {
-      return userId;
-    }
-  }
-  return undefined;
-};
-
-const urlsForUser = (id)=> {
-  const userUrlDatabase = {};
-  for (const urlId in urlDatabase)
-    if (id === urlDatabase[urlId].userID) {
-      userUrlDatabase[urlId] = urlDatabase[urlId]
-    }
-  return userUrlDatabase;
-};
-
 app.get("/login", (req, res) => {
   const templateVars = {
     user: users[req.session.user_id],
@@ -83,7 +52,7 @@ app.get("/login", (req, res) => {
   };
   //dry
   if (req.session.user_id) {
-    res.render("urls_index", templateVars);
+    res.redirect("/urls");
   } else {
     res.render("login", templateVars);
   }
@@ -112,7 +81,7 @@ app.post("/register", (req, res) => {
   res.redirect("/urls");
 });
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/login");
 });
 //DRY THIS CODE
@@ -133,7 +102,7 @@ app.post("/login", (req, res) => {
   }
 });
 app.post("/urls/:id/edit", (req, res) => {
-  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id))
+  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id,urlDatabase))
   if (keysOfuserUrls.includes(req.params.id)) {
     urlDatabase[req.params.id].longURL = req.body.longURL;
     res.redirect("/urls");
@@ -142,7 +111,7 @@ app.post("/urls/:id/edit", (req, res) => {
   }
 });
 app.post("/urls/:id/delete", (req, res) => {
-  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id))
+  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id,urlDatabase))
   if (keysOfuserUrls.includes(req.params.id)) {
     delete urlDatabase[req.params.id];
     res.redirect("/urls");
@@ -189,14 +158,14 @@ app.get("/register", (req, res) => {
   };
   //dry
   if (req.session.user_id) {
-    res.render("urls_index", templateVars);
+    res.redirect("/urls");
   } else {
     res.render("urls_register", templateVars);
   }
 });
 app.get("/urls", (req, res) => {
   const templateVars = {
-    urls: urlsForUser(req.session.user_id),
+    urls: urlsForUser(req.session.user_id,urlDatabase),
     user: users[req.session.user_id],
   };
   if (!req.session.user_id) {
@@ -211,7 +180,7 @@ app.get("/urls/:id", (req, res) => {
     id: req.params.id,
     longURL: urlDatabase[req.params.id].longURL,
   };
-  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id))
+  const keysOfuserUrls = Object.keys(urlsForUser(req.session.user_id,urlDatabase))
   if (!req.session.user_id) {
     res.send("Error: This page is restricted for User access. Please Login to continue.");
     return;
