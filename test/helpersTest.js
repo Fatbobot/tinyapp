@@ -1,7 +1,8 @@
+
 const { assert } = require('chai');
 
 const { getUserByEmail } = require('../helpers.js');
-
+// constants
 const testUsers = {
   "userRandomID": {
     id: "userRandomID", 
@@ -14,7 +15,7 @@ const testUsers = {
     password: "dishwasher-funk"
   }
 };
-
+// test case
 describe('getUserByEmail', function() {
   it('should return a user with valid email', function() {
     const user = getUserByEmail("user@example.com", testUsers)
@@ -23,7 +24,6 @@ describe('getUserByEmail', function() {
   });
   it('should return undefined if email is not valid', function() {
     const user = getUserByEmail("undefined@hotmail.com", testUsers)
-    const expectedUserID = "userRandomID";
     assert.strictEqual(user, undefined)
   });
 });
